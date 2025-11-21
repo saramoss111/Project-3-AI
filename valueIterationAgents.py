@@ -60,20 +60,20 @@ class ValueIterationAgent(ValueEstimationAgent):
         self.runValueIteration()
 
     def runValueIteration(self):
-        # Write value iteration code here
-        "*** YOUR CODE HERE ***"
         states = self.mdp.getStates()
-        for k in range(self.iterations):
-            current_value = self.values.copy()
-            for state in states: #Every State
+        for _ in range(self.iterations):
+            new_values = self.values.copy()
+            for state in states:
                 if self.mdp.isTerminal(state):
                     continue
-                possible_actions = self.mdp.getPossibleActions(state)
-                possible_value = []
-                for action in possible_actions: #Every Action
-                    possible_value.append(self.computeQValueFromValues(state, action))
-                current_value[state] = max(possible_value)
-            self.values = current_value
+                action_values = []
+                for action in self.mdp.getPossibleActions(state):
+                    q = self.computeQValueFromValues(state, action)
+                    action_values.append(q)
+                new_values[state] = max(action_values)
+                
+            self.values = new_values
+
 
     def getValue(self, state):
         """
@@ -88,21 +88,7 @@ class ValueIterationAgent(ValueEstimationAgent):
           value function stored in self.values.
         """
         "*** YOUR CODE HERE ***"
-        ### Use count for each direction
-        result = 0
-        sprime_and_prob = self.mdp.getTransitionStatesAndProbs(state, action)
-        sprime = []
-        prob = []
-        reward = {}
-        for i in range(len(sprime_and_prob)):
-            sprime.append(sprime_and_prob[i][0])
-            prob.append(sprime_and_prob[i][1])
-            reward[action] = self.mdp.getReward(state, action, sprime[i])
-        for j in range(len(sprime_and_prob)):
-            if len(sprime_and_prob) == 0:
-                continue
-            result += prob[j]* (reward[action] + self.discount * self.getValue(sprime[j]))
-        return result
+        util.raiseNotDefined()
 
     def computeActionFromValues(self, state):
         """
@@ -114,18 +100,7 @@ class ValueIterationAgent(ValueEstimationAgent):
           terminal state, you should return None.
         """
         "*** YOUR CODE HERE ***"
-        if self.mdp.isTerminal(state):
-            return None
-
-        possible_actions = self.mdp.getPossibleActions(state)
-        value_to_action = {}
-        list_of_qvalues = []
-        for action in possible_actions:
-            q_value = self.computeQValueFromValues(state, action)
-            value_to_action[q_value] = action
-            list_of_qvalues.append(q_value)
-        maximum= max(list_of_qvalues)
-        return value_to_action[maximum]
+        util.raiseNotDefined()
 
     def getPolicy(self, state):
         return self.computeActionFromValues(state)
