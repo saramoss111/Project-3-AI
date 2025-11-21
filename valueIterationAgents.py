@@ -61,25 +61,18 @@ class ValueIterationAgent(ValueEstimationAgent):
 
     def runValueIteration(self):
         for _ in range(self.iterations):
-        # Use a fresh Counter so updates are synchronous
             newValues = util.Counter()
 
-            # Loop over all states
             for state in self.mdp.getStates():
 
-                # Terminal (or dead-end) states have value 0
                 if self.mdp.isTerminal(state):
                     newValues[state] = 0
                     continue
 
                 actions = self.mdp.getPossibleActions(state)
-
-                # If no possible actions, treat like terminal
                 if not actions:
                     newValues[state] = 0
                     continue
-
-                # Compute Q-values for all actions and take the max
                 qValues = []
                 for action in actions:
                     q = self.computeQValueFromValues(state, action)
@@ -87,7 +80,6 @@ class ValueIterationAgent(ValueEstimationAgent):
 
                 newValues[state] = max(qValues)
 
-            # After we’ve computed all new values, replace the old ones
             self.values = newValues
 
     def getValue(self, state):
