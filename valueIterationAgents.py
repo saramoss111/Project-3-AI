@@ -63,17 +63,31 @@ class ValueIterationAgent(ValueEstimationAgent):
         # Write value iteration code here
         "*** YOUR CODE HERE ***"
         states = self.mdp.getStates()
-        for k in range(self.iterations):
-            current_value = self.values.copy()
-            for state in states: #Every State
+
+    # Repeat value iteration for the given number of iterations
+        for _ in range(self.iterations):
+
+        # Make a copy so we don't overwrite values during the update
+            new_values = self.values.copy()
+
+        # Loop over every state
+            for state in states:
+
+            # Terminal states always stay at value 0 (or whatever default)
                 if self.mdp.isTerminal(state):
                     continue
-                possible_actions = self.mdp.getPossibleActions(state)
-                possible_value = []
-                for action in possible_actions: #Every Action
-                    possible_value.append(self.computeQValueFromValues(state, action))
-                current_value[state] = max(possible_value)
-            self.values = current_value
+
+            # Find the value of each possible action
+                action_values = []
+                for action in self.mdp.getPossibleActions(state):
+                    q = self.computeQValueFromValues(state, action)
+                    action_values.append(q)
+
+            # Update the state value to the best action value
+            new_values[state] = max(action_values)
+
+        # Replace old values with updated ones
+        self.values = new_values
 
     def getValue(self, state):
         """
