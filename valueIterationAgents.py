@@ -174,6 +174,19 @@ class AsynchronousValueIterationAgent(ValueIterationAgent):
 
     def runValueIteration(self):
         "*** YOUR CODE HERE ***"
+        states = self.mdp.getStates()
+        num_of_states = len(states)
+        for k in range(self.iterations):
+            current_value = self.values.copy()
+            temp_state = states[k % len(states)]
+            if self.mdp.isTerminal(temp_state):
+                    continue
+            possible_actions = self.mdp.getPossibleActions(temp_state)
+            possible_value = []
+            for action in possible_actions: #Every Action
+                possible_value.append(self.computeQValueFromValues(temp_state, action))
+            current_value[temp_state] = max(possible_value)
+            self.values = current_value
 
 class PrioritizedSweepingValueIterationAgent(AsynchronousValueIterationAgent):
     """
@@ -194,4 +207,57 @@ class PrioritizedSweepingValueIterationAgent(AsynchronousValueIterationAgent):
 
     def runValueIteration(self):
         "*** YOUR CODE HERE ***"
+        states = self.mdp.getStates()
+        set_of_predecessors = {} #Dictionary of set of predecessors for each state
+        pqueue = util.PriorityQueue()
+        for state in states: #Initializing the set
+            if self.mdp.isTerminal(state):
+                continue
+            possible_action = self.mdp.getPossibleActions(state)
+            reachable_from_state = set()
+            for action in possible_action:
+                temp = self.mdp.getTransitionStatesAndProbs(state, action)
+                for a in range(len(temp)):
+                    if temp[a][1] != 0:
+                        reachable_from_state.add(temp[a][0])
+            for sprime in reachable_from_state:
+                if sprime in set_of_predecessors:
+                    set_of_predecessors[sprime].add(state)
+                else:
+                    set_of_predecessors[sprime] = {state}
+
+        for state in states:
+            if self.mdp.isTerminal(state):
+                continue
+            possible_actions = self.mdp.getPossibleActions(state)
+            possible_value = []
+            for action in possible_actions:
+                possible_value.append(self.computeQValueFromValues(state, action))
+            q_value = max(possible_value)
+            diff = abs(self.values[state] - q_value)
+            pqueue.update(state, -diff)
+
+        for i in range(self.iterations):
+            if pqueue.isEmpty():
+                break
+            state = pqueue.pop()
+            if self.mdp.isTerminal(state):
+                continue
+            possible_actions = self.mdp.getPossibleActions(state)
+            possible_value2 = []
+            for action in possible_actions:
+                possible_value2.append(self.computeQValueFromValues(state, action))
+            self.values[state] = max(possible_value2)
+
+            for predecessor in set_of_predecessors[state]:
+                if self.mdp.isTerminal(predecessor):
+                    continue
+                possible_actions = self.mdp.getPossibleActions(predecessor)
+                possible_value3 = []
+                for action in possible_actions:
+                    possible_value3.append(self.computeQValueFromValues(predecessor, action))
+                max_qvalue = max(possible_value3)
+                diff = abs(self.values[predecessor] - max_qvalue)
+                if diff > self.theta:
+                    pqueue.update(predecessor, -diff)
 
