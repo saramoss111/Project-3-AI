@@ -95,20 +95,22 @@ class ValueIterationAgent(ValueEstimationAgent):
           value function stored in self.values.
         """
         "*** YOUR CODE HERE ***"
-        ### Use count for each direction
         result = 0
-        sprime_and_prob = self.mdp.getTransitionStatesAndProbs(state, action)
-        sprime = []
-        prob = []
-        reward = {}
-        for i in range(len(sprime_and_prob)):
-            sprime.append(sprime_and_prob[i][0])
-            prob.append(sprime_and_prob[i][1])
-            reward[action] = self.mdp.getReward(state, action, sprime[i])
-        for j in range(len(sprime_and_prob)):
-            if len(sprime_and_prob) == 0:
+        transitions = self.mdp.getTransitionStatesAndProbs(state, action)
+
+        next_states = [s for (s, p) in transitions]
+        probs = [p for (s, p) in transitions]
+        reward = {action: None}
+
+        for i, s_prime in enumerate(next_states):
+            reward[action] = self.mdp.getReward(state, action, s_prime)
+
+        for j, s_prime in enumerate(next_states):
+            if len(transitions) == 0:
                 continue
-            result += prob[j]* (reward[action] + self.discount * self.getValue(sprime[j]))
+            r = reward[action]
+            result += probs[j] * (r + self.discount * self.getValue(s_prime))
+
         return result
         util.raiseNotDefined()
 
@@ -125,15 +127,17 @@ class ValueIterationAgent(ValueEstimationAgent):
         if self.mdp.isTerminal(state):
             return None
 
-        possible_actions = self.mdp.getPossibleActions(state)
+        actions = self.mdp.getPossibleActions(state)
         value_to_action = {}
-        list_of_qvalues = []
-        for action in possible_actions:
-            q_value = self.computeQValueFromValues(state, action)
-            value_to_action[q_value] = action
-            list_of_qvalues.append(q_value)
-        maximum= max(list_of_qvalues)
-        return value_to_action[maximum]
+        q_values = []
+
+        for action in actions:
+            q = self.computeQValueFromValues(state, action)
+            value_to_action[q] = action
+            q_values.append(q)
+
+        best_q = max(q_values)
+        return value_to_action[best_q]
 
     def getPolicy(self, state):
         return self.computeActionFromValues(state)
@@ -175,18 +179,23 @@ class AsynchronousValueIterationAgent(ValueIterationAgent):
     def runValueIteration(self):
         "*** YOUR CODE HERE ***"
         states = self.mdp.getStates()
-        num_of_states = len(states)
+        num_states = len(states)
+
         for k in range(self.iterations):
-            current_value = self.values.copy()
-            temp_state = states[k % len(states)]
-            if self.mdp.isTerminal(temp_state):
-                    continue
-            possible_actions = self.mdp.getPossibleActions(temp_state)
-            possible_value = []
-            for action in possible_actions: #Every Action
-                possible_value.append(self.computeQValueFromValues(temp_state, action))
-            current_value[temp_state] = max(possible_value)
-            self.values = current_value
+            new_values = self.values.copy()
+            state = states[k % num_states]
+
+            if self.mdp.isTerminal(state):
+                continue
+
+            actions = self.mdp.getPossibleActions(state)
+            q_values = []
+
+            for action in actions:
+                q_values.append(self.computeQValueFromValues(state, action))
+
+            new_values[state] = max(q_values)
+            self.values = new_values
 
 class PrioritizedSweepingValueIterationAgent(AsynchronousValueIterationAgent):
     """
@@ -208,56 +217,61 @@ class PrioritizedSweepingValueIterationAgent(AsynchronousValueIterationAgent):
     def runValueIteration(self):
         "*** YOUR CODE HERE ***"
         states = self.mdp.getStates()
-        set_of_predecessors = {} #Dictionary of set of predecessors for each state
-        pqueue = util.PriorityQueue()
-        for state in states: #Initializing the set
-            if self.mdp.isTerminal(state):
-                continue
-            possible_action = self.mdp.getPossibleActions(state)
-            reachable_from_state = set()
-            for action in possible_action:
-                temp = self.mdp.getTransitionStatesAndProbs(state, action)
-                for a in range(len(temp)):
-                    if temp[a][1] != 0:
-                        reachable_from_state.add(temp[a][0])
-            for sprime in reachable_from_state:
-                if sprime in set_of_predecessors:
-                    set_of_predecessors[sprime].add(state)
-                else:
-                    set_of_predecessors[sprime] = {state}
+        predecessors = {}     
+        pq = util.PriorityQueue()
 
         for state in states:
             if self.mdp.isTerminal(state):
                 continue
-            possible_actions = self.mdp.getPossibleActions(state)
-            possible_value = []
-            for action in possible_actions:
-                possible_value.append(self.computeQValueFromValues(state, action))
-            q_value = max(possible_value)
-            diff = abs(self.values[state] - q_value)
-            pqueue.update(state, -diff)
 
-        for i in range(self.iterations):
-            if pqueue.isEmpty():
-                break
-            state = pqueue.pop()
+            for action in self.mdp.getPossibleActions(state):
+                for next_state, prob in self.mdp.getTransitionStatesAndProbs(state, action):
+                    if prob == 0:
+                        continue
+                    if next_state not in predecessors:
+                        predecessors[next_state] = set()
+                    predecessors[next_state].add(state)
+
+        for state in states:
             if self.mdp.isTerminal(state):
                 continue
-            possible_actions = self.mdp.getPossibleActions(state)
-            possible_value2 = []
-            for action in possible_actions:
-                possible_value2.append(self.computeQValueFromValues(state, action))
-            self.values[state] = max(possible_value2)
 
-            for predecessor in set_of_predecessors[state]:
-                if self.mdp.isTerminal(predecessor):
+            actions = self.mdp.getPossibleActions(state)
+            if not actions:
+                continue
+
+            q_values = [self.computeQValueFromValues(state, action) for action in actions]
+            max_q = max(q_values)
+            diff = abs(self.values[state] - max_q)
+            pq.update(state, -diff)   
+
+        for _ in range(self.iterations):
+            if pq.isEmpty():
+                break
+
+            state = pq.pop()
+            if self.mdp.isTerminal(state):
+                continue
+
+            actions = self.mdp.getPossibleActions(state)
+            if actions:
+                q_values = [self.computeQValueFromValues(state, action) for action in actions]
+                self.values[state] = max(q_values)
+
+            if state not in predecessors:
+                continue
+
+            for pred in predecessors[state]:
+                if self.mdp.isTerminal(pred):
                     continue
-                possible_actions = self.mdp.getPossibleActions(predecessor)
-                possible_value3 = []
-                for action in possible_actions:
-                    possible_value3.append(self.computeQValueFromValues(predecessor, action))
-                max_qvalue = max(possible_value3)
-                diff = abs(self.values[predecessor] - max_qvalue)
-                if diff > self.theta:
-                    pqueue.update(predecessor, -diff)
 
+                actions = self.mdp.getPossibleActions(pred)
+                if not actions:
+                    continue
+
+                q_values = [self.computeQValueFromValues(pred, action) for action in actions]
+                max_q = max(q_values)
+                diff = abs(self.values[pred] - max_q)
+
+                if diff > self.theta:
+                    pq.update(pred, -diff)
